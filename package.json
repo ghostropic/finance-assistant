@@ -55,7 +55,7 @@
     "@types/pg": "8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.4.5",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-better-tailwindcss": "4.9.0",
