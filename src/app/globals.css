@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* HeroUI's default theme with this app's green accent. Selectors match HeroUI's own. */
+:root,
+.light,
+[data-theme="light"] {
+  --accent: #2f6f5e;
+  --accent-foreground: #ffffff;
+}
+
+.dark,
+[data-theme="dark"] {
+  --accent: #7cc4ad;
+  --accent-foreground: #10241e;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}

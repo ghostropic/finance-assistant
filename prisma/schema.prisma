@@ -1,0 +1,135 @@
+// Plaid data synced locally. See docs/milestone-1.md (Schema) for the reasoning.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// One connected bank (a Plaid "Item").
+model PlaidItem {
+  id                   String    @id @default(uuid()) @db.Uuid
+  plaidItemId          String    @unique @map("plaid_item_id")
+  /// sandbox | production: the PLAID_ENV the bank was connected with. Each environment
+  /// has its own database; see src/lib/environment.ts and docs/milestone-3.md.
+  environment          String
+  /// Plaid institution ID, used to refuse connecting the same bank twice.
+  institutionId        String?   @map("institution_id")
+  institutionName      String?   @map("institution_name")
+  /// ok | needs_reconnect (the bank needs the user to sign in again through Link update mode).
+  status               String    @default("ok")
+  /// Plaid error code from the last failed sync, cleared by a successful one. Never the
+  /// error message, which can contain account details.
+  lastErrorCode        String?   @map("last_error_code")
+  /// AES-256-GCM ciphertext; see src/lib/crypto.ts. Never log or return this.
+  accessTokenEncrypted String    @map("access_token_encrypted")
+  /// Cursor for /transactions/sync. Null until the first sync completes.
+  syncCursor           String?   @map("sync_cursor")
+  lastSyncedAt         DateTime? @map("last_synced_at") @db.Timestamptz
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  accounts             Account[]
+
+  @@map("plaid_items")
+}
+
+model Account {
+  id               String        @id @default(uuid()) @db.Uuid
+  plaidItemId      String        @map("plaid_item_id") @db.Uuid
+  plaidAccountId   String        @unique @map("plaid_account_id")
+  name             String
+  officialName     String?       @map("official_name")
+  /// depository | credit | loan | investment | other
+  type             String
+  subtype          String?
+  /// Last 4 digits; the only account identifier tools may return.
+  mask             String?
+  currentBalance   Decimal?      @map("current_balance") @db.Decimal(14, 2)
+  availableBalance Decimal?      @map("available_balance") @db.Decimal(14, 2)
+  creditLimit      Decimal?      @map("credit_limit") @db.Decimal(14, 2)
+  currency         String?
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  item             PlaidItem     @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  transactions     Transaction[]
+
+  @@map("accounts")
+}
+
+model Transaction {
+  id                 String   @id @default(uuid()) @db.Uuid
+  accountId          String   @map("account_id") @db.Uuid
+  plaidTransactionId String   @unique @map("plaid_transaction_id")
+  date               DateTime @db.Date
+  authorizedDate     DateTime? @map("authorized_date") @db.Date
+  name               String
+  merchantName       String?  @map("merchant_name")
+  /// Plaid convention: positive = money out of the account, negative = money in.
+  amount             Decimal  @db.Decimal(14, 2)
+  currency           String?
+  /// Plaid personal_finance_category.primary, e.g. FOOD_AND_DRINK
+  categoryPrimary    String?  @map("category_primary")
+  /// Plaid personal_finance_category.detailed, e.g. FOOD_AND_DRINK_RESTAURANT
+  categoryDetailed   String?  @map("category_detailed")
+  paymentChannel     String?  @map("payment_channel")
+  pending            Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  account            Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+  @@index([merchantName])
+  @@index([categoryPrimary, date])
+  @@map("transactions")
+}
+
+/// A chat conversation (Milestone 2). History is append-only.
+model Conversation {
+  id        String                @id @default(uuid()) @db.Uuid
+  title     String
+  createdAt DateTime              @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime              @updatedAt @map("updated_at") @db.Timestamptz
+  messages  ConversationMessage[]
+  metrics   TurnMetrics[]
+
+  @@index([updatedAt])
+  @@map("conversations")
+}
+
+/// One Anthropic message, stored exactly as sent or received so it can be replayed unchanged.
+model ConversationMessage {
+  id             String       @id @default(uuid()) @db.Uuid
+  conversationId String       @map("conversation_id") @db.Uuid
+  /// Position in the conversation, from 0.
+  seq            Int
+  /// user | assistant
+  role           String
+  content        Json
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, seq])
+  @@map("conversation_messages")
+}
+
+/// Token usage and timing for one completed chat turn (Milestone 4). Counts only, no content.
+model TurnMetrics {
+  id               String       @id @default(uuid()) @db.Uuid
+  conversationId   String       @map("conversation_id") @db.Uuid
+  /// `seq` of the turn's question in conversation_messages.
+  seq              Int
+  model            String
+  effort           String
+  rounds           Int
+  inputTokens      Int          @map("input_tokens")
+  outputTokens     Int          @map("output_tokens")
+  cacheReadTokens  Int          @map("cache_read_tokens")
+  cacheWriteTokens Int          @map("cache_write_tokens")
+  durationMs       Int          @map("duration_ms")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  conversation     Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, seq])
+  @@map("turn_metrics")
+}

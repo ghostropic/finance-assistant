@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs (structured app logs, docs/milestone-4.md)
+logs/
+*.log
+npm-debug.log*
+
+# Test and build output
+coverage/
+dist/
+
+# OS and editor
+.DS_Store
+.vscode/
+.idea/
+
+# Generated Prisma client (rebuilt by `npm install` / `npm run db:generate`)
+src/generated/
+
+# TypeScript build cache
+*.tsbuildinfo

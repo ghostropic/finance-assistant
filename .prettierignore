@@ -1,0 +1,3 @@
+# Also skips everything in .gitignore.
+package-lock.json
+prisma/migrations/
