@@ -51,7 +51,7 @@
     "@electric-sql/pglite": "0.5.8",
     "@electric-sql/pglite-socket": "0.2.11",
     "@tailwindcss/postcss": "4.3.3",
-    "@types/node": "^24",
+    "@types/node": "^26",
     "@types/pg": "8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
